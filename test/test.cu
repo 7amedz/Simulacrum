@@ -6,5 +6,6 @@ __global__ void gprint() {
 
 int main() {
     gprint<<<1, 1>>>();
+    cudaDeviceSynchronize();
     return 0;
 }
