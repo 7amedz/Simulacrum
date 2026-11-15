@@ -5,9 +5,8 @@ __global__ void gprint() {
 }
 
 __global__ void print_thread_info() {
-    printf("Block: %d   Thread: %d  ", blockId.x, threadId.x);
-    int global = (blockId.x * blockDim.x) + threadId.x;
-    printf("global: %d \n\n", global);
+    int global = (blockIdx.x * blockDim.x) + threadIdx.x;
+    printf("Block: %u   Thread: %u  global: %u \n\n", blockIdx.x, threadIdx.x, global);
 }
 
 int main() {
