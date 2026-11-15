@@ -1,6 +1,8 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include <sys/types.h>
+
 #define CUDA_CHECK(call)                                                                           \
     do {                                                                                           \
         cudaError_t err = (call);                                                                  \
@@ -16,7 +18,7 @@ __global__ void gprint() {
 }
 
 __global__ void print_thread_info() {
-    int global = (blockIdx.x * blockDim.x) + threadIdx.x;
+    u_int32_t global = (blockIdx.x * blockDim.x) + threadIdx.x;
     printf("Block: %u   Thread: %u  global: %u \n\n", blockIdx.x, threadIdx.x, global);
 }
 
@@ -24,6 +26,7 @@ int main() {
     // //      <<<B, T>>>
     // gprint<<<1, 1>>>();
     print_thread_info<<<2, 4>>>();
+    CUDA_CHECK(cudaGetLastError()); // to catch a bad launch
     CUDA_CHECK(cudaDeviceSynchronize());
     return 0;
 }
