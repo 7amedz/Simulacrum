@@ -26,6 +26,9 @@ __global__ void sgemm_naive(const float* A, const float* B, float* C, int N) {
 
     int j = (blockDim.x * blockIdx.x) + threadIdx.x;
     int i = (blockDim.y * blockIdx.y) + threadIdx.y;
+    if (i >= N || j >= N) {
+        return;
+    }
     int idx = (i * N) + j;
     float c = 0.0f;
     for (int k{}; k < N; k++) {
@@ -58,7 +61,7 @@ float max_diff(const float* A, const float* B, int N) {
 
 int main() {
 
-    for (int N : {256, 512, 1024}) {
+    for (int N : {256, 512, 1000, 1024}) {
         std::vector<float> A(N * N);
         std::vector<float> B(N * N);
         std::vector<float> C(N * N);
@@ -86,7 +89,9 @@ int main() {
 
         // decide block size and # of blocks
         dim3 block(16, 16);
-        dim3 grid((N / block.x), (N / block.y));
+        dim3 grid(
+            ((N + block.x - 1) / block.x),
+            ((N + block.y - 1) / block.y)); // +15 (round up trick in case N % block.x isn't 0)
         // dim3 grid((N / 16), (N / 16)); how many blocks across and down
 
         // time stuff
@@ -116,16 +121,16 @@ int main() {
 
         double gpu_seconds = gpu_ms / 1000.0;
         double gpu_billion_ops_per_sec = (2.0 * N * N * N) / (gpu_seconds * 1e9);
+        std::cout << "For N=" << N << "\n";
         std::cout << "GPU GFLOP/s = " << gpu_billion_ops_per_sec << "\n\n\n";
-
-        std::cout << "\n\n\n";
+        std::cout << "\n";
 
         auto t0 = std::chrono::steady_clock::now();
         sgemm_cpu(A.data(), B.data(), D.data(), N);
         auto t1 = std::chrono::steady_clock::now();
         double seconds = std::chrono::duration<double>(t1 - t0).count();
         double billion_ops_per_sec = (2.0 * N * N * N) / (seconds * 1e9);
-        std::cout << "CPU GFLOP/s:" << billion_ops_per_sec << "\n\n\n";
+        std::cout << "CPU GFLOP/s:" << billion_ops_per_sec << "\n";
         //
 
         std::cout << "MAX DIFF: " << max_diff(C.data(), D.data(), N) << "\n";
