@@ -72,6 +72,7 @@ int main() {
             B[i] = dist(rng);
         }
 
+        // allocate GPU memory
         float* d_A;
         CUDA_CHECK(cudaMalloc(&d_A, (N * N) * sizeof(float)));
         CUDA_CHECK(cudaMemcpy(d_A, A.data(), N * N * sizeof(float), cudaMemcpyHostToDevice));
@@ -83,12 +84,26 @@ int main() {
         float* d_C;
         CUDA_CHECK(cudaMalloc(&d_C, (N * N) * sizeof(float)));
 
+        // decide block size and # of blocks
         dim3 block(16, 16);
         dim3 grid((N / block.x), (N / block.y));
         // dim3 grid((N / 16), (N / 16)); how many blocks across and down
 
+        // time stuff
+        float gpu_ms{};
+
+        cudaEvent_t start;
+        cudaEvent_t end;
+        CUDA_CHECK(cudaEventCreate(&start));
+        CUDA_CHECK(cudaEventCreate(&end));
+        CUDA_CHECK(cudaEventRecord(start));
+
         sgemm_naive<<<grid, block>>>(d_A, d_B, d_C, N);
         CUDA_CHECK(cudaGetLastError()); // to catch a bad launch
+
+        CUDA_CHECK(cudaEventRecord(end));
+        CUDA_CHECK(cudaEventSynchronize(end)); // CPU waits to end to actually happen
+        CUDA_CHECK(cudaEventElapsedTime(&gpu_ms, start, end));
 
         CUDA_CHECK(cudaMemcpy(C.data(), d_C, N * N * sizeof(float), cudaMemcpyDeviceToHost));
 
@@ -96,18 +111,25 @@ int main() {
         CUDA_CHECK(cudaFree(d_B));
         CUDA_CHECK(cudaFree(d_C));
 
-        sgemm_cpu(A.data(), B.data(), D.data(), N);
+        CUDA_CHECK(cudaEventDestroy(start));
+        CUDA_CHECK(cudaEventDestroy(end));
+
+        double gpu_seconds = gpu_ms / 1000.0;
+        double gpu_billion_ops_per_sec = (2.0 * N * N * N) / (gpu_seconds * 1e9);
+        std::cout << "GPU GFLOP/s = " << gpu_billion_ops_per_sec << "\n\n\n";
 
         std::cout << "\n\n\n";
+
+        auto t0 = std::chrono::steady_clock::now();
+        sgemm_cpu(A.data(), B.data(), D.data(), N);
+        auto t1 = std::chrono::steady_clock::now();
+        double seconds = std::chrono::duration<double>(t1 - t0).count();
+        double billion_ops_per_sec = (2.0 * N * N * N) / (seconds * 1e9);
+        std::cout << "CPU GFLOP/s:" << billion_ops_per_sec << "\n\n\n";
+        //
 
         std::cout << "MAX DIFF: " << max_diff(C.data(), D.data(), N) << "\n";
         std::cout << "\n\n\n";
-
-        // auto t0 = std::chrono::steady_clock::now();
-        // auto t1 = std::chrono::steady_clock::now();
-        // double seconds = std::chrono::duration<double>(t1 - t0).count();
-        // double billion_ops_per_sec = (2.0 * N * N * N) / (seconds * 1e9);
-        // std::cout << "\n\n\n";
         //
         // auto t3 = std::chrono::steady_clock::now();
         // auto t4 = std::chrono::steady_clock::now();
