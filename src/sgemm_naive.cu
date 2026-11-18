@@ -37,6 +37,22 @@ __global__ void sgemm_naive(const float* A, const float* B, float* C, int N) {
     C[idx] = c;
 }
 
+// non coalesced: i reads from x instead
+// bad cz for each warp read (at particular k) we are hoping rows on A
+// also C writes but less of an issue
+__global__ void sgemm_uncoalesced(const float* A, const float* B, float* C, int N) {
+    int i = (blockDim.x * blockIdx.x) + threadIdx.x;
+    int j = (blockDim.y * blockIdx.y) + threadIdx.y;
+    if (i >= N || j >= N) {
+        return;
+    }
+    float c = 0.0f;
+    for (int k{}; k < N; k++) {
+        c += A[(i * N) + k] * B[(k * N) + j];
+    }
+    C[(i * N) + j] = c;
+}
+
 void sgemm_cpu(const float* A, const float* B, float* C, int N) {
     // C[i,j] = sum : A[i][0-(N-1)]*B[0-(N-1)][j]
     for (int i = 0; i < N; i++) {
@@ -122,7 +138,7 @@ int main() {
         double gpu_seconds = gpu_ms / 1000.0;
         double gpu_billion_ops_per_sec = (2.0 * N * N * N) / (gpu_seconds * 1e9);
         std::cout << "For N=" << N << "\n";
-        std::cout << "GPU GFLOP/s = " << gpu_billion_ops_per_sec << "\n\n\n";
+        std::cout << "GPU GFLOP/s = " << gpu_billion_ops_per_sec << "\n";
         std::cout << "\n";
 
         auto t0 = std::chrono::steady_clock::now();
