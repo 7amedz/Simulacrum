@@ -31,7 +31,6 @@ Tiling only gives ~1.5x over naive likely because naive kernel already benefits 
 
 Register tiling fixes that and lands at ~40-58% of cuBLAS for N ≥ 512. At N=256 there are only 16 blocks of 64x64 for 40 SMs, so most of the GPU sits idle.
 
-cuBLAS and register tiling both drop at N=4096 compared to 2048, repeated over 3 runs. I haven't measured why, my guess is the T4 hitting its power/clock limit on long runs.
 The drop for N=4096 could be power/clock limit for the T4 on colab.
 
 ### Build
