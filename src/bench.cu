@@ -228,6 +228,19 @@ int main() {
     CUBLAS_CHECK(cublasCreate(&handle));
     CUBLAS_CHECK(cublasSetMathMode(handle, CUBLAS_DEFAULT_MATH)); // plain FP32, no TF32
 
+    // so run cuBLAS for ~1-2 s before timing anything (otherwise small N get measured slow)
+    {
+        int W = 2048;
+        float* w;
+        CUDA_CHECK(cudaMalloc(&w, 3 * (size_t)W * W * sizeof(float)));
+        CUDA_CHECK(cudaMemset(w, 0, 3 * (size_t)W * W * sizeof(float)));
+        for (int r{}; r < 300; r++) {
+            sgemm_cublas(handle, w, w + (size_t)W * W, w + 2 * (size_t)W * W, W);
+        }
+        CUDA_CHECK(cudaDeviceSynchronize());
+        CUDA_CHECK(cudaFree(w));
+    }
+
     std::ofstream csv("results/bench.csv");
     if (!csv) {
         fprintf(stderr, "can't open results/bench.csv (run from repo root, mkdir results)\n");
